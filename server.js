@@ -27,7 +27,10 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
-
+app.get("/",(req,res)=>{
+  res.setHeader("Access-Control-Allow-Credentials","true");
+   res.send("API is Running...");
+ });
 // ("mongodb://localhost/projet");
 
 mongoose.connect(CONNECTION_URL, {
