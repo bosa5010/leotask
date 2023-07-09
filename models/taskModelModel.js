@@ -6,6 +6,7 @@ const TaskModelSchema = new mongoose.Schema(
     description: { type: String, required: true },
     // deleted flag for soft delete feature
     taskTheme: { type: mongoose.Schema.Types.ObjectID, ref: "TaskTheme" },
+    groups: [{ type: mongoose.Schema.Types.ObjectID, ref: "Group" }],
     steps: [{ type: mongoose.Schema.Types.ObjectID, ref: "Step" }],
     systems: [{ type: mongoose.Schema.Types.ObjectID, ref: "System" }],
     deleted: {

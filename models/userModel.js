@@ -14,6 +14,12 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Team",
     },
+    groups: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Group",
+      },
+    ],
     managedTeams: [
       {
         type: mongoose.Schema.Types.ObjectId,

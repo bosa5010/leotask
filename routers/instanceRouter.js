@@ -18,21 +18,27 @@ instanceRouter.get(
     const system =
       req.query.system && req.query.system !== "all" ? req.query.system : "";
 
+    const systems = req.query.systems ? req.query.systems.split(",") : "";
+
     const nameFilter =
       name && name !== "" ? { name: { $regex: name, $options: "i" } } : {};
 
     const systemFilter = system ? { system } : {};
 
+    const systemsFilter = systems ? { system: { $in: systems } } : {};
+
     const count = await Instance.countDocuments({
       deleted: false,
       ...nameFilter,
       ...systemFilter,
+      ...systemsFilter,
     });
 
     const instances = await Instance.find({
       deleted: false,
       ...nameFilter,
       ...systemFilter,
+      ...systemsFilter,
     })
       .populate("system")
       .skip(pageSize * (pageNumber - 1))

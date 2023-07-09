@@ -28,6 +28,10 @@ const taskSchema = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectID, ref: "User" },
     responsibleUser: { type: mongoose.Schema.Types.ObjectID, ref: "User" },
     responsibleUsers: [{ type: mongoose.Schema.Types.ObjectID, ref: "User" }],
+    responsibleGroup: { type: mongoose.Schema.Types.ObjectID, ref: "Group" },
+    responsibleGroups: [{ type: mongoose.Schema.Types.ObjectID, ref: "Group" }],
+    responsibleTeam: { type: mongoose.Schema.Types.ObjectID, ref: "Team" },
+    responsibleTeams: [{ type: mongoose.Schema.Types.ObjectID, ref: "Team" }],
     status: { type: mongoose.Schema.Types.ObjectID, ref: "Status" },
     // deleted flag for soft delete feature
     deleted: {

@@ -1,7 +1,7 @@
 import express from "express";
 import expressAsyncHandler from "express-async-handler";
 
-import { isAuth, isAdmin } from "../utils.js";
+import { isAuth, isAdmin, isSuperAdmin } from "../utils.js";
 import Item from "../models/itemModel.js";
 
 const itemRouter = express.Router();
@@ -47,6 +47,7 @@ itemRouter.post(
   "/",
   isAuth,
   isAdmin,
+  isSuperAdmin,
   expressAsyncHandler(async (req, res) => {
     const item = new Item({
       name: req.body.item.name,
@@ -62,6 +63,7 @@ itemRouter.put(
   "/:id",
   isAuth,
   isAdmin,
+  isSuperAdmin,
   expressAsyncHandler(async (req, res) => {
     const item = await Item.findById(req.params.id);
     if (item && item.deleted === false) {
@@ -83,6 +85,7 @@ itemRouter.delete(
   "/:id",
   isAuth,
   isAdmin,
+  isSuperAdmin,
   expressAsyncHandler(async (req, res) => {
     const item = await Item.findById(req.params.id);
     if (item || item.deleted === false) {

@@ -13,15 +13,24 @@ taskThemeRouter.get(
     const pageSize = Number(req.query.pageSize) || 10;
     const pageNumber = Number(req.query.pageNumber) || 1;
     const name = req.query.name || "";
+    const teams = req.query.teams ? req.query.teams.split(",") : "";
+
     const nameFilter =
       name && name !== "" ? { name: { $regex: name, $options: "i" } } : {};
+
+    const teamFilter = teams ? { teams: { $in: teams } } : {};
 
     const count = await TaskTheme.countDocuments({
       deleted: false,
       ...nameFilter,
+      ...teamFilter,
     });
 
-    const taskThemes = await TaskTheme.find({ deleted: false, ...nameFilter })
+    const taskThemes = await TaskTheme.find({
+      deleted: false,
+      ...nameFilter,
+      ...teamFilter,
+    })
       .populate("teams")
       .skip(pageSize * (pageNumber - 1))
       .limit(pageSize);
@@ -33,7 +42,7 @@ taskThemeRouter.get(
   "/:id",
   isAuth,
   expressAsyncHandler(async (req, res) => {
-    const taskTheme = await TaskTheme.findById(req.params.id);
+    const taskTheme = await TaskTheme.findById(req.params.id).populate("teams");
     if (taskTheme && taskTheme.deleted === false) {
       res.send(taskTheme);
     } else {

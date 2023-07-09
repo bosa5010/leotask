@@ -3,6 +3,7 @@ import SubTask from "./models/subTaskModel.js";
 import Task from "./models/taskModel.js";
 import Week from "./models/weekModel.js";
 import moment from "moment";
+import Status from "./models/statusModel.js";
 
 export const generateToken = (user) => {
   return jwt.sign(
@@ -13,6 +14,9 @@ export const generateToken = (user) => {
       name: user.name,
       userName: user.userName,
       email: user.email,
+      team: user.team,
+      groups: user.groups,
+      managedTeams: user.managedTeams,
       isAdmin: user.isAdmin,
       isSuperAdmin: user.isSuperAdmin,
       team: user.team,
@@ -77,6 +81,17 @@ export const createSubTask = (task, comment) => {
     itemNumber: 0,
   });
   const createdSubTask = subTask.save();
+};
+
+export const updateTaskStep = async (task, currentStep) => {
+  const tempTask = await Task.findById(task._id);
+  if (tempTask && tempTask.deleted === false) {
+    tempTask.currentStep = currentStep || tempTask.currentStep;
+
+    task.comment && task.comment !== "" && createSubTask(task, task.comment);
+
+    const updatedTask = await tempTask.save();
+  }
 };
 
 export const nextReference = async () => {
@@ -157,3 +172,74 @@ export async function comingWeeks() {
 
   return weeks;
 }
+
+export async function addManySubtasks(req, nbrSubTask) {
+  const subTask = req.body.subTask;
+  const data = subTask.data;
+  const steps = subTask.steps;
+  const keysTab = Object.keys(data[0]);
+  var createdSubTasks = [];
+
+  // feth all steps
+  steps?.forEach((step) => {
+    // fetch all step Items
+    step.items.forEach((item) => {
+      //get all values = item
+      var itemName = item?.name;
+      const itemTable = data?.filter(
+        (element) => element[keysTab[0]].trim() === itemName
+      );
+      //fetch all item status
+      item.itemStatus.forEach(async (itemStatus) => {
+        //get all values = item status
+        var STATUS = itemStatus?.reference;
+
+        const StatusTable = itemTable?.filter(
+          (element) => String(element[keysTab[1]]) === STATUS
+        );
+
+        if (StatusTable?.length > 0) {
+          const comment =
+            StatusTable?.length + " " + itemName + " " + itemStatus?.name;
+
+          const tempSubTask = new SubTask({
+            task: req.body.subTask.task,
+            taskModel: req.body.subTask.taskModel,
+            system: req.body.subTask.system,
+            instance: req.body.subTask.instance,
+            createdBy: req.body.subTask.createdBy || req.user,
+            updatedBy: req.body.subTask.updatedBy || req.user,
+            taskStep: step,
+            item: item,
+            itemStatus: itemStatus,
+            itemComment: comment,
+            itemNumber: StatusTable?.length,
+          });
+          const createdSubTask = await tempSubTask.save();
+          createdSubTasks.push(createdSubTask);
+          nbrSubTask++;
+        }
+      });
+    });
+  });
+  return createdSubTasks;
+}
+
+export async function activeStatus() {
+  const numberFilter = { number: { $lte: 2 } };
+
+  const status = await Status.find({
+    deleted: false,
+    ...numberFilter,
+  });
+
+  return status ? objectId(status) : [];
+}
+
+export const objectId = (objects) => {
+  if (objects) {
+    const tempObjects = objects?.map(({ _id }) => _id);
+    return tempObjects;
+  }
+  return [];
+};

@@ -19,7 +19,10 @@ userRouter.get(
 userRouter.post(
   "/signin",
   expressAsyncHandler(async (req, res) => {
-    const user = await User.findOne({ email: req.body.email });
+    const user = await User.findOne({ email: req.body.email })
+      .populate("team")
+      .populate("groups")
+      .populate("managedTeams");
     if (user) {
       if (bcrypt.compareSync(req.body.password, user.password)) {
         res.send({
@@ -28,6 +31,9 @@ userRouter.post(
           lastName: user.lastName,
           name: user.name,
           userName: user.userName,
+          team: user.team,
+          groups: user.groups,
+          managedTeams: user.managedTeams,
           email: user.email,
           isAdmin: user.isAdmin,
           isSuperAdmin: user.isSuperAdmin,
@@ -56,6 +62,7 @@ userRouter.post(
       isAdmin: req.body.isAdmin,
       isSuperAdmin: req.body.isSuperAdmin,
       team: req.body.team,
+      groups: req.body.groups,
       managedTeams: req.body.managedTeams,
       password: bcrypt.hashSync(req.body.password, 8),
     });
@@ -70,6 +77,7 @@ userRouter.get(
   expressAsyncHandler(async (req, res) => {
     const user = await User.findById(req.params.id)
       .populate("team")
+      .populate("groups")
       .populate("managedTeams");
     if (user && user.deleted === false) {
       res.send(user);
@@ -101,6 +109,9 @@ userRouter.put(
           lastName: user.lastName,
           name: user.name,
           userName: user.userName,
+          team: req.body.team,
+          groups: req.body.groups,
+          managedTeams: req.body.managedTeams,
           email: user.email,
           isAdmin: user.isAdmin,
           isSuperAdmin: user.isSuperAdmin,
@@ -133,6 +144,7 @@ userRouter.get(
     const name = req.query.name || "";
     const firstName = req.query.firstName || "";
     const lastName = req.query.lastName || "";
+    const groups = req.query.groups ? req.query.groups.split(",") : "";
 
     const nameFilter =
       name && name !== "" ? { name: { $regex: name, $options: "i" } } : {};
@@ -147,17 +159,21 @@ userRouter.get(
         ? { lastName: { $regex: lastName, $options: "i" } }
         : {};
 
+    const groupsFilter = groups ? { groups: { $in: groups } } : {};
+
     const count = await User.countDocuments({
       deleted: false,
       ...nameFilter,
       ...firstNameFilter,
       ...lastNameFilter,
+      ...groupsFilter,
     });
     const users = await User.find({
       deleted: false,
       ...nameFilter,
       ...firstNameFilter,
       ...lastNameFilter,
+      ...groupsFilter,
     })
       .populate("team")
       .populate("managedTeams")
@@ -195,7 +211,7 @@ userRouter.put(
   isSuperAdmin,
   expressAsyncHandler(async (req, res) => {
     const user = await User.findById(req.params.id);
-    if (user && user.deleted === false) {
+    if (user && user.deleted === false && req.body.actionType === "update") {
       user.lastName = req.body.lastName || user.lastName;
       user.firstName = req.body.firstName || user.firstName;
       user.name = req.body.name || user.name;
@@ -205,12 +221,26 @@ userRouter.put(
       user.isSuperAdmin = Boolean(req.body.isSuperAdmin);
       user.isAdmin = Boolean(req.body.isAdmin);
 
+      user.groups = req.body.groups || user.groups;
       user.team = req.body.team || user.team;
       user.managedTeams = req.body.managedTeams || user.managedTeams;
 
       const updatedUser = await user.save();
 
-      res.send({ message: "User Updated", user: updatedUser });
+      res.send({ message: "User Updated Successfully", user: updatedUser });
+    } else if (
+      user &&
+      user.deleted === false &&
+      req.body.actionType === "resetpassword"
+    ) {
+      user.password = bcrypt.hashSync(user.userName, 8) || user.password;
+
+      const updatedUser = await user.save();
+
+      res.send({
+        message: "User Pasword  Reset Successfully",
+        user: updatedUser,
+      });
     } else {
       res.status(404).send({ message: "User Not Found" });
     }

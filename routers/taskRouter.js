@@ -8,6 +8,8 @@ import {
   nextReference,
   nextWeek,
   comingWeeks,
+  activeStatus,
+  objectId,
 } from "../utils.js";
 import moment from "moment/moment.js";
 import Task from "../models/taskModel.js";
@@ -27,7 +29,24 @@ taskRouter.get(
       ? req.query.taskModels.split(",")
       : "";
 
+    const groups = req.query.groups ? req.query.groups.split(",") : "";
+
+    const teams = req.query.teams ? req.query.teams.split(",") : "";
+
     const status = req.query.status ? req.query.status.split(",") : "";
+
+    const activeStatus = req.query.activeStatus
+      ? req.query.activeStatus.split(",")
+      : "";
+
+    // var listActiveStatus = await activeStatus();
+
+    // const status = req.query.status
+    //   ? req.query.status.split(",")
+    //   : listActiveStatus?.length > 0
+    //   ? listActiveStatus?.split(",")
+    //   : "";
+
     const users = req.query.users ? req.query.users.split(",") : "";
 
     const instances = req.query.instance ? req.query.instance.split(",") : "";
@@ -62,9 +81,17 @@ taskRouter.get(
       ? { taskModel: { $in: taskModels } }
       : {};
 
-    const statusFilter = status ? { status: { $in: status } } : {};
+    const groupsFilter = groups ? { responsibleGroup: { $in: groups } } : {};
+
+    const teamsFilter = teams ? { responsibleTeam: { $in: teams } } : {};
 
     const userFilter = users ? { responsibleUser: { $in: users } } : {};
+
+    const statusFilter = status
+      ? { status: { $in: status } }
+      : activeStatus
+      ? { status: { $in: activeStatus } }
+      : {};
 
     const instanceFilter = instances ? { instance: { $in: instances } } : {};
 
@@ -88,26 +115,30 @@ taskRouter.get(
 
     const count = await Task.countDocuments({
       deleted: false,
-      ...descriptionFilter,
-      ...referenceFilter,
+      ...startDateFilter,
+      ...endDateFilter,
       ...taskModelsFilter,
+      ...teamsFilter,
+      ...groupsFilter,
       ...statusFilter,
       ...userFilter,
       ...instanceFilter,
-      ...startDateFilter,
-      ...endDateFilter,
+      ...descriptionFilter,
+      ...referenceFilter,
     });
 
     const tasks = await Task.find({
       deleted: false,
-      ...descriptionFilter,
-      ...referenceFilter,
+      ...startDateFilter,
+      ...endDateFilter,
       ...taskModelsFilter,
+      ...teamsFilter,
+      ...groupsFilter,
       ...statusFilter,
       ...userFilter,
       ...instanceFilter,
-      ...startDateFilter,
-      ...endDateFilter,
+      ...descriptionFilter,
+      ...referenceFilter,
     })
       .populate({
         path: "taskModel",
@@ -131,6 +162,13 @@ taskRouter.get(
           model: "System",
         },
       })
+      .populate({
+        path: "taskModel",
+        populate: {
+          path: "groups",
+          model: "Group",
+        },
+      })
       .populate("system")
       .populate("instance")
       .populate("startWeek")
@@ -140,6 +178,10 @@ taskRouter.get(
       .populate("responsibleUsers")
       .populate("status")
       .populate("currentStep")
+      .populate("responsibleGroup")
+      .populate("responsibleGroups")
+      .populate("responsibleTeam")
+      .populate("responsibleTeams")
       .sort({ ...startDateSorting, ...statusSorting })
       .skip(pageSize * (pageNumber - 1))
       .limit(pageSize);
@@ -161,6 +203,10 @@ taskRouter.get(
       .populate("responsibleUser")
       .populate("responsibleUsers")
       .populate("status")
+      .populate("responsibleGroup")
+      .populate("responsibleGroups")
+      .populate("responsibleTeam")
+      .populate("responsibleTeams")
       .populate({
         path: "currentStep",
         populate: {
@@ -193,8 +239,25 @@ taskRouter.get(
           path: "systems",
           model: "System",
         },
+      })
+      .populate({
+        path: "taskModel",
+        populate: {
+          path: "groups",
+          model: "Group",
+        },
+      })
+      .populate({
+        path: "taskModel",
+        populate: {
+          path: "groups",
+          model: "Group",
+          populate: {
+            path: "team",
+            model: "Team",
+          },
+        },
       });
-
     if (task && task.deleted === false) {
       res.send(task);
     } else {
@@ -208,26 +271,11 @@ taskRouter.post(
   isAuth,
   isAdmin,
   expressAsyncHandler(async (req, res) => {
-    const referenceNumberSorting = { referenceNumber: -1 };
-    const tasks = await Task.find()
-      .sort({ ...referenceNumberSorting })
-      .limit(1);
-
     const ref = await nextReference();
 
     if (ref) {
       req.body.task.referenceNumber = ref.referenceNumber;
       req.body.task.reference = ref.reference;
-    }
-
-    if (!req.body.task.responsibleUser) {
-      req.body.task.responsibleUser = null;
-    }
-    if (!req.body.task.responsibleUsers) {
-      req.body.task.responsibleUsers = null;
-    }
-    if (!req.body.task.createdBy) {
-      req.body.task.createdBy = req.user;
     }
 
     const task = new Task({
@@ -245,9 +293,13 @@ taskRouter.post(
       endDate: req.body.task.endDate,
       closedDate: req.body.task.closedDate,
       dedline: req.body.task.dedline,
-      responsibleUser: req.body.task.responsibleUser,
-      createdBy: req.body.task.createdBy,
-      responsibleUsers: req.body.task.responsibleUsers,
+      createdBy: req.body.task.createdBy || req.user,
+      responsibleUser: req.body.task.responsibleUser || null,
+      responsibleUsers: req.body.task.responsibleUsers || null,
+      responsibleGroup: req.body.task.responsibleGroup || null,
+      responsibleGroups: req.body.task.responsibleGroups || null,
+      responsibleTeam: req.body.task.responsibleTeam || null,
+      responsibleTeams: req.body.task.responsibleTeams || null,
       status: req.body.task.status,
     });
     const createdTask = await task.save();
@@ -293,9 +345,13 @@ taskRouter.post(
           endDate: nextWeeks.endDate,
           closedDate: nextWeeks.closedDate,
           dedline: nextWeeks.dedline,
-          responsibleUser: req.body.tasks.responsibleUser || null,
           createdBy: req.body.tasks.createdBy || req.user,
+          responsibleUser: req.body.tasks.responsibleUser || null,
           responsibleUsers: req.body.tasks.responsibleUsers || null,
+          responsibleGroup: req.body.tasks.responsibleGroup || null,
+          responsibleGroups: req.body.tasks.responsibleGroups || null,
+          responsibleTeam: req.body.tasks.responsibleTeam || null,
+          responsibleTeams: req.body.tasks.responsibleTeams || null,
           status: req.body.tasks.status,
         });
 
@@ -329,6 +385,10 @@ taskRouter.put(
       .populate("createdBy")
       .populate("responsibleUser")
       .populate("responsibleUsers")
+      .populate("responsibleGroup")
+      .populate("responsibleGroups")
+      .populate("responsibleTeam")
+      .populate("responsibleTeams")
       .populate("status")
       .populate("currentStep");
 
@@ -352,6 +412,13 @@ taskRouter.put(
       task.responsibleUser = req.body.responsibleUser || task.responsibleUser;
       task.responsibleUsers =
         req.body.responsibleUsers || task.responsibleUsers;
+      task.responsibleGroup =
+        req.body.responsibleGroup || task.responsibleGroup;
+      task.responsibleGroups =
+        req.body.responsibleGroups || task.responsibleGroups;
+      task.responsibleTeam = req.body.responsibleTeam || task.responsibleTeam;
+      task.responsibleTeams =
+        req.body.responsibleTeams || task.responsibleTeams;
       task.status = req.body.status || task.status;
 
       req.body.comment &&

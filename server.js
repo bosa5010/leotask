@@ -17,6 +17,7 @@ import itemRouter from "./routers/itemRouter.js";
 import itemStatusRouter from "./routers/itemStatusRouter.js";
 import subTaskRouter from "./routers/subTaskRouter.js";
 import stepRouter from "./routers/stepRouter.js";
+import groupRouter from "./routers/groupRouter.js";
 
 import { CONNECTION_URL } from "./dataBase.js";
 
@@ -24,13 +25,15 @@ dotenv.config();
 
 const app = express();
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const maxRequestBodySize = "1mb";
+app.use(express.json({ limit: maxRequestBodySize }));
+app.use(express.urlencoded({ limit: maxRequestBodySize, extended: true }));
+
 app.use(cors());
-app.get("/",(req,res)=>{
-  res.setHeader("Access-Control-Allow-Credentials","true");
-   res.send("API is Running...");
- });
+app.get("/", (req, res) => {
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.send("API is Running...");
+});
 // ("mongodb://localhost/projet");
 
 mongoose.connect(CONNECTION_URL, {
@@ -42,6 +45,7 @@ mongoose.connect(CONNECTION_URL, {
 app.use("/api/users", userRouter);
 app.use("/api/systems", systemRouter);
 app.use("/api/teams", teamRouter);
+app.use("/api/groups", groupRouter);
 app.use("/api/taskThemes", taskThemeRouter);
 app.use("/api/taskModels", taskModelRouter);
 app.use("/api/instances", instanceRouter);

@@ -1,7 +1,7 @@
 import express from "express";
 import expressAsyncHandler from "express-async-handler";
 
-import { isAuth, isAdmin } from "../utils.js";
+import { isAuth, isAdmin, isSuperAdmin } from "../utils.js";
 import ItemStatus from "../models/itemStatusModel.js";
 
 const itemStatusRouter = express.Router();
@@ -46,10 +46,12 @@ itemStatusRouter.post(
   "/",
   isAuth,
   isAdmin,
+  isSuperAdmin,
   expressAsyncHandler(async (req, res) => {
     const itemStatus = new ItemStatus({
       name: req.body.itemStatus.name,
       description: req.body.itemStatus.description,
+      reference: req.body.itemStatus.reference,
     });
     const createdItemStatus = await itemStatus.save();
     res.send({ message: "item Status created", itemStatus: createdItemStatus });
@@ -60,11 +62,13 @@ itemStatusRouter.put(
   "/:id",
   isAuth,
   isAdmin,
+  isSuperAdmin,
   expressAsyncHandler(async (req, res) => {
     const itemStatus = await ItemStatus.findById(req.params.id);
     if (itemStatus && itemStatus.deleted === false) {
       itemStatus.name = req.body.name || itemStatus.name;
       itemStatus.description = req.body.description || itemStatus.description;
+      itemStatus.reference = req.body.reference || itemStatus.reference;
       const updatedItemStatus = await itemStatus.save();
       res.send({
         message: "item Status updated successfully",
@@ -80,6 +84,7 @@ itemStatusRouter.delete(
   "/:id",
   isAuth,
   isAdmin,
+  isSuperAdmin,
   expressAsyncHandler(async (req, res) => {
     const itemStatus = await ItemStatus.findById(req.params.id);
     if (itemStatus || itemStatus.deleted === false) {

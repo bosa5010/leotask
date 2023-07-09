@@ -147,6 +147,9 @@ weekRouter.post(
 
 weekRouter.post(
   "/many",
+  isAuth,
+  isAdmin,
+  isSuperAdmin,
   expressAsyncHandler(async (req, res) => {
     var weeks = [];
 

@@ -1,12 +1,11 @@
 import mongoose from "mongoose";
 
-const ItemStatusSchema = new mongoose.Schema(
+const GroupSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, unique: false },
+    name: { type: String, required: true },
     description: { type: String, required: true },
-    reference: { type: String, required: true },
-
     // deleted flag for soft delete feature
+    team: { type: mongoose.Schema.Types.ObjectID, ref: "Team" },
     deleted: {
       type: mongoose.Schema.Types.Boolean,
       index: true,
@@ -17,6 +16,6 @@ const ItemStatusSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-const ItemStatus = mongoose.model("ItemStatus", ItemStatusSchema);
+const Group = mongoose.model("Group", GroupSchema);
 
-export default ItemStatus;
+export default Group;

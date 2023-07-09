@@ -2,7 +2,13 @@ import express from "express";
 import expressAsyncHandler from "express-async-handler";
 import SubTask from "../models/subTaskModel.js";
 
-import { isAuth, isAdmin } from "../utils.js";
+import {
+  isAuth,
+  isAdmin,
+  addManySubtasks,
+  createSubTask,
+  updateTaskStep,
+} from "../utils.js";
 import moment from "moment/moment.js";
 
 const subTaskRouter = express.Router();
@@ -165,29 +171,103 @@ subTaskRouter.post(
   "/",
   isAuth,
   expressAsyncHandler(async (req, res) => {
-    if (!req.body.subTask.createdBy) {
-      req.body.subTask.createdBy = req.user;
-    }
-    if (!req.body.subTask.updatedBy) {
-      req.body.subTask.updatedBy = req.user;
-    }
+    var createdSubTasks = [];
+    if (req.body.subTask.data.length > 0) {
+      const subTask = req.body.subTask;
+      const data = subTask.data;
+      const steps = subTask.steps;
+      const keysTab = Object.keys(data[0]);
 
-    const subTask = new SubTask({
-      task: req.body.subTask.task,
-      taskModel: req.body.subTask.taskModel,
-      system: req.body.subTask.system,
-      instance: req.body.subTask.instance,
-      createdBy: req.body.subTask.createdBy,
-      updatedBy: req.body.subTask.updatedBy,
-      taskStep: req.body.subTask.currentStep,
-      item: req.body.subTask.item,
-      itemStatus: req.body.subTask.itemStatus,
-      itemComment: req.body.subTask.itemComment,
-      itemNumber: req.body.subTask.itemNumber,
-    });
-    const createdSubTask = await subTask.save();
+      // feth all steps
+      steps?.forEach((step) => {
+        // fetch all step Items
+        step.items.forEach((item) => {
+          //get all values = item
+          var itemName = item?.name;
+          const itemTable = data?.filter(
+            (element) => element[keysTab[0]].trim() === itemName
+          );
+          //fetch all item status
+          item.itemStatus.forEach(async (itemStatus) => {
+            //get all values = item status
+            var STATUS = itemStatus?.reference;
 
-    res.send({ message: "subTask created", subTask: createdSubTask });
+            const StatusTable = itemTable?.filter(
+              (element) => String(element[keysTab[1]]) === STATUS
+            );
+
+            if (StatusTable?.length > 0) {
+              const comment =
+                StatusTable?.length + " " + itemName + " " + itemStatus?.name;
+
+              const tempSubTask = new SubTask({
+                task: req.body.subTask.task,
+                taskModel: req.body.subTask.taskModel,
+                system: req.body.subTask.system,
+                instance: req.body.subTask.instance,
+                createdBy: req.body.subTask.createdBy || req.user,
+                updatedBy: req.body.subTask.updatedBy || req.user,
+                taskStep: step,
+                item: item,
+                itemStatus: itemStatus,
+                itemComment: comment,
+                itemNumber: StatusTable?.length,
+              });
+              // const createdSubTask = await tempSubTask.save();
+              createdSubTasks.push(tempSubTask);
+            }
+          });
+        });
+      });
+
+      const createdSubTask = await SubTask.insertMany(createdSubTasks);
+
+      if (createdSubTask.length > 0) {
+        var tempTask = {
+          _id: req.body.subTask.task,
+          createdBy: req.user,
+          updatedBy: req.user,
+          ...req.body.subTask,
+        };
+
+        createSubTask(tempTask, createdSubTask.length + " SubTasks Created");
+
+        var lastStep = steps[steps.length - 1];
+        var tempTaskStep = {
+          comment: lastStep.name + " was " + req.body.subTask.currentStep.name,
+          _id: req.body.subTask.task,
+          createdBy: req.user,
+          updatedBy: req.user,
+          ...req.body.subTask,
+        };
+
+        updateTaskStep(tempTaskStep, lastStep);
+      }
+
+      res.send({
+        message: createdSubTask.length + " SubTasks Created Successfully",
+        subTask: createdSubTask,
+      });
+    } else {
+      const subTask = new SubTask({
+        task: req.body.subTask.task,
+        taskModel: req.body.subTask.taskModel,
+        system: req.body.subTask.system,
+        instance: req.body.subTask.instance,
+        createdBy: req.body.subTask.createdBy || req.user,
+        updatedBy: req.body.subTask.updatedBy || req.user,
+        taskStep: req.body.subTask.currentStep,
+        item: req.body.subTask.item,
+        itemStatus: req.body.subTask.itemStatus,
+        itemComment: req.body.subTask.itemComment,
+        itemNumber: req.body.subTask.itemNumber,
+      });
+      const createdSubTask = await subTask.save();
+      res.send({
+        message: "1 SubTask Created Successfully",
+        subTask: createdSubTask,
+      });
+    }
   })
 );
 
