@@ -91,8 +91,10 @@ userRouter.put(
   "/profile",
   isAuth,
   expressAsyncHandler(async (req, res) => {
-    const user = await User.findById(req.body.userId);
-
+    const user = await User.findById(req.body.userId)
+      .populate("team")
+      .populate("groups")
+      .populate("managedTeams");
     if (user && user.deleted === false) {
       if (
         req.body.password &&
@@ -109,9 +111,9 @@ userRouter.put(
           lastName: user.lastName,
           name: user.name,
           userName: user.userName,
-          team: req.body.team,
-          groups: req.body.groups,
-          managedTeams: req.body.managedTeams,
+          team: user.team,
+          groups: user.groups,
+          managedTeams: user.managedTeams,
           email: user.email,
           isAdmin: user.isAdmin,
           isSuperAdmin: user.isSuperAdmin,
